@@ -1,6 +1,8 @@
 package com.xworkz.AIChatBot.service;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Scope;
+import org.springframework.context.annotation.ScopedProxyMode;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -8,13 +10,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.context.WebApplicationContext;
 
+import java.time.Duration;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
+@Scope(value = WebApplicationContext.SCOPE_SESSION, proxyMode = ScopedProxyMode.TARGET_CLASS)
 public class GeminiService {
 
     @Value("${gemini.api.key}")
@@ -38,7 +46,6 @@ public class GeminiService {
 
     public String getChatResponse(String userMessage) {
 
-        // Inject persona instruction only once, at the start of the conversation
         if (!systemPromptSent) {
             Map<String, Object> systemTurn = new HashMap<String, Object>();
             systemTurn.put("role", "user");
@@ -101,8 +108,35 @@ public class GeminiService {
             return reply;
 
         } catch (Exception e) {
-            return "Sorry, something went wrong: " + e.getMessage();
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && errorMsg.contains("429")) {
+                return "I'm currently handling a lot of requests and hit my free-tier limit for today. " + getTimeUntilQuotaReset();
+            }
+            return "Sorry, I ran into a technical issue. Please try again shortly.";
         }
+    }
+
+    private String getTimeUntilQuotaReset() {
+        ZoneId pacificZone = ZoneId.of("America/Los_Angeles");
+        ZonedDateTime nowPacific = ZonedDateTime.now(pacificZone);
+
+        ZonedDateTime nextMidnightPacific = nowPacific
+                .plusDays(1)
+                .withHour(0)
+                .withMinute(0)
+                .withSecond(0)
+                .withNano(0);
+
+        Duration remaining = Duration.between(nowPacific, nextMidnightPacific);
+
+        long hours = remaining.toHours();
+        long minutes = remaining.toMinutes() % 60;
+
+        ZoneId istZone = ZoneId.of("Asia/Kolkata");
+        ZonedDateTime resetTimeIST = nextMidnightPacific.withZoneSameInstant(istZone);
+        String resetTimeFormatted = resetTimeIST.format(DateTimeFormatter.ofPattern("h:mm a"));
+
+        return "Please try again in about " + hours + " hours " + minutes + " minutes (around " + resetTimeFormatted + " IST).";
     }
 
     @SuppressWarnings("unchecked")
