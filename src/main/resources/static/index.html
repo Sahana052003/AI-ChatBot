@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Chatbot</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        background: #1e1e2f;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+    }
+    .chat-container {
+        width: 400px;
+        height: 600px;
+        background: #2a2a3d;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .chat-header {
+        background: #6c5ce7;
+        color: white;
+        padding: 16px;
+        font-weight: bold;
+        text-align: center;
+    }
+    .chat-messages {
+        flex: 1;
+        padding: 16px;
+        overflow-y: auto;
+    }
+    .message {
+        margin-bottom: 12px;
+        padding: 10px 14px;
+        border-radius: 16px;
+        max-width: 75%;
+        line-height: 1.4;
+        font-size: 14px;
+        word-wrap: break-word;
+    }
+    .user-message {
+        background: #6c5ce7;
+        color: white;
+        margin-left: auto;
+        border-bottom-right-radius: 4px;
+    }
+    .bot-message {
+        background: #3d3d54;
+        color: #eee;
+        margin-right: auto;
+        border-bottom-left-radius: 4px;
+    }
+    .chat-input {
+        display: flex;
+        padding: 12px;
+        background: #23233a;
+    }
+    .chat-input input {
+        flex: 1;
+        padding: 10px 14px;
+        border-radius: 20px;
+        border: none;
+        outline: none;
+    }
+    .chat-input button {
+        margin-left: 8px;
+        padding: 10px 18px;
+        border: none;
+        border-radius: 20px;
+        background: #6c5ce7;
+        color: white;
+        cursor: pointer;
+    }
+    .chat-input button:hover {
+        background: #5a4bd4;
+    }
+  </style>
+</head>
+<body>
+
+<div class="chat-container">
+  <div class="chat-header">AI Chatbot</div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="chat-input">
+    <input type="text" id="userInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMessage()">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script>
+  function appendMessage(text, sender) {
+      const messagesDiv = document.getElementById('chatMessages');
+      const msgDiv = document.createElement('div');
+      msgDiv.classList.add('message', sender === 'user' ? 'user-message' : 'bot-message');
+      msgDiv.textContent = text;
+      messagesDiv.appendChild(msgDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+
+  function sendMessage() {
+      const input = document.getElementById('userInput');
+      const message = input.value.trim();
+      if (!message) return;
+
+      appendMessage(message, 'user');
+      input.value = '';
+
+      fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: message })
+      })
+      .then(res => res.json())
+      .then(data => {
+          appendMessage(data.reply, 'bot');
+      })
+      .catch(err => {
+          appendMessage('Error: could not reach server', 'bot');
+      });
+  }
+
+  window.onload = function() {
+      appendMessage("Hi, I'm Sora! How can I help you today?", 'bot');
+  };
+</script>
+
+</body>
+</html>
